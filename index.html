@@ -288,7 +288,7 @@ footer{position:relative;z-index:1;text-align:center;padding:40px 24px 32px;font
         <div class="limits-box">
           <div class="limit-row">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            <span id="limitText">Text / Code: max. 800 characters</span>
+            <span id="limitText">Text / Code: max. 1500 characters</span>
           </div>
           <div class="limit-row">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
@@ -347,14 +347,14 @@ footer{position:relative;z-index:1;text-align:center;padding:40px 24px 32px;font
         <span id="textLabel">Enter text</span>
         <span class="char-count" id="textCharCount">0 / 800</span>
       </div>
-      <textarea id="textInput" maxlength="800" rows="8" oninput="updateCount('text')" placeholder="Paste your text here..."></textarea>
+      <textarea id="textInput" maxlength="1500" rows="8" oninput="updateCount('text')" placeholder="Paste your text here..."></textarea>
     </div>
     <div class="panel" id="panel-code">
       <div class="input-label">
         <span id="codeLabel">Enter code</span>
         <span class="char-count" id="codeCharCount">0 / 800</span>
       </div>
-      <textarea id="codeInput" class="mono" maxlength="800" rows="8" oninput="updateCount('code')" placeholder="// Paste your code here..."></textarea>
+      <textarea id="codeInput" class="mono" maxlength="1500" rows="8" oninput="updateCount('code')" placeholder="// Paste your code here..."></textarea>
     </div>
     <div class="panel" id="panel-image">
       <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
@@ -454,7 +454,7 @@ const T={
     mPerplexity:"Vorhersagbarkeit",mBurstiness:"Burstiness",mVocabulary:"Wortvielfalt",
     mRepetition:"Wiederholung",mStructure:"Struktur",mNaturalness:"Natürlichkeit",
     hlTitle:"Muster-Highlights",hlLegAI:"KI-Muster",hlLegHuman:"Mensch-Muster",
-    limitText:"Text / Code: max. 800 Zeichen",limitImg:"Bilder: max. 6 pro Sitzung",
+    limitText:"Text / Code: max. 1500 Zeichen",limitImg:"Bilder: max. 6 pro Sitzung",
     stTitle:"Einstellungen",stThemeLabel:"Erscheinungsbild",stLangLabel:"Sprache",stLimitsLabel:"Limits",
     tLight:"Hell",tDark:"Dunkel",tOcean:"Ozean",tMint:"Mint",tPurple:"Lila",
     footerCopy:"© 2026 AIScope",
@@ -480,7 +480,7 @@ const T={
     mPerplexity:"Predictability",mBurstiness:"Burstiness",mVocabulary:"Vocabulary",
     mRepetition:"Repetition",mStructure:"Structure",mNaturalness:"Naturalness",
     hlTitle:"Pattern Highlights",hlLegAI:"AI pattern",hlLegHuman:"Human pattern",
-    limitText:"Text / Code: max. 800 characters",limitImg:"Images: max. 6 per session",
+    limitText:"Text / Code: max. 1500 characters",limitImg:"Images: max. 6 per session",
     stTitle:"Settings",stThemeLabel:"Appearance",stLangLabel:"Language",stLimitsLabel:"Limits",
     tLight:"Light",tDark:"Dark",tOcean:"Ocean",tMint:"Mint",tPurple:"Purple",
     footerCopy:"© 2026 AIScope",
@@ -506,7 +506,7 @@ const T={
     mPerplexity:"Tahmin Edilebilirlik",mBurstiness:"Burstiness",mVocabulary:"Kelime Zenginliği",
     mRepetition:"Tekrar",mStructure:"Yapı",mNaturalness:"Doğallık",
     hlTitle:"Desen Vurguları",hlLegAI:"YZ deseni",hlLegHuman:"İnsan deseni",
-    limitText:"Metin / Kod: en fazla 800 karakter",limitImg:"Görsel: oturum başına en fazla 6",
+    limitText:"Metin / Kod: en fazla 1500 karakter",limitImg:"Görsel: oturum başına en fazla 6",
     stTitle:"Ayarlar",stThemeLabel:"Görünüm",stLangLabel:"Dil",stLimitsLabel:"Limitler",
     tLight:"Açık",tDark:"Koyu",tOcean:"Okyanus",tMint:"Nane",tPurple:"Mor",
     footerCopy:"© 2026 AIScope",
@@ -948,7 +948,6 @@ function buildHighlights(text) {
    UI UTILITIES
 ══════════════════════════════════════════════════════════ */
 let curLang='en', curTab='text', imgCount=0;
-const IMG_LIMIT=6, CHAR_LIMIT=800;
 
 function applyLang(lang) {
   const t = T[lang];
@@ -991,7 +990,7 @@ function updateCount(type) {
   const counter = document.getElementById(type+'CharCount');
   const len = input.value.length;
   counter.textContent = `${len} / ${CHAR_LIMIT}`;
-  counter.className = 'char-count'+(len>700?' warn':'')+(len>=CHAR_LIMIT?' over':'');
+  counter.className = 'char-count'+(len>1200?' warn':'')+(len>=CHAR_LIMIT?' over':'');
 }
 
 window.addEventListener('load', ()=>{
@@ -1010,16 +1009,45 @@ function switchTab(t, el) {
   hideResult();
 }
 
+// ── LIMITS ──
+const IMG_LIMIT    = 6;
+const CHAR_LIMIT   = 1500;   // text/code max chars
+const IMG_MAX_MB   = 4;      // max image size MB
+const IMG_MAX_PX   = 1200;   // max image dimension (resize before preview)
+
 function handleImg(e) {
   const f = e.target.files[0]; if (!f) return;
   if (imgCount >= IMG_LIMIT) { alert(T[curLang].limitImg); return; }
+
+  // File size check
+  if (f.size > IMG_MAX_MB * 1024 * 1024) {
+    alert(`Max image size: ${IMG_MAX_MB}MB. Your file: ${(f.size/1024/1024).toFixed(1)}MB`);
+    return;
+  }
+
   const r = new FileReader();
   r.onload = ev => {
-    const img = document.getElementById('previewImg');
-    img.src = ev.target.result; img.style.display = 'block';
-    document.getElementById('upIconWrap').style.display = 'none';
-    document.getElementById('upTitle').textContent = f.name;
-    document.getElementById('upSub').textContent = (f.size/1024).toFixed(1)+' KB';
+    // Resize image before storing to prevent memory issues
+    const tmpImg = new Image();
+    tmpImg.onload = () => {
+      const canvas = document.createElement('canvas');
+      let w = tmpImg.width, h = tmpImg.height;
+      if (w > IMG_MAX_PX || h > IMG_MAX_PX) {
+        const ratio = Math.min(IMG_MAX_PX/w, IMG_MAX_PX/h);
+        w = Math.round(w * ratio);
+        h = Math.round(h * ratio);
+      }
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(tmpImg, 0, 0, w, h);
+      const compressed = canvas.toDataURL('image/jpeg', 0.82);
+
+      const imgEl = document.getElementById('previewImg');
+      imgEl.src = compressed; imgEl.style.display = 'block';
+      document.getElementById('upIconWrap').style.display = 'none';
+      document.getElementById('upTitle').textContent = f.name;
+      document.getElementById('upSub').textContent = `${(f.size/1024).toFixed(1)} KB → ${w}×${h}px`;
+    };
+    tmpImg.src = ev.target.result;
   };
   r.readAsDataURL(f);
 }
