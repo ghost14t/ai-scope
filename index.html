@@ -741,13 +741,78 @@ function detectAI(content, type) {
   // Extra code-specific signals
   let codeAI = 0, codeHuman = 0;
   if (type === 'code') {
-    const docComments = (content.match(/\/\/ [A-Z].{18,}|# [A-Z].{18,}/g)||[]).length;
-    if (docComments > 2) codeAI += 0.15;
-    const debugLogs = (content.match(/console\.log\(|print\(|System\.out/g)||[]).length;
-    const funcs = (content.match(/function |def |const \w+ = \(|async /g)||[]).length;
-    if (debugLogs > funcs * 0.4) codeHuman += 0.15;
-    if (/var /.test(content)) codeHuman += 0.08;
-    if (/TODO|FIXME|hack|temp|#noqa/i.test(content)) codeHuman += 0.12;
+
+    // ── AI code signals ──
+    // Long descriptive comments starting with capital (AI loves these)
+    const docComments = (content.match(/\/\/ [A-Z][a-z].{15,}|# [A-Z][a-z].{15,}/g)||[]).length;
+    codeAI += Math.min(0.4, docComments * 0.10);
+
+    // Every function/block has a comment above it (AI pattern)
+    const commentLines = (content.match(/^\s*(\/\/|#).+/gm)||[]).length;
+    const codeLines = content.split('\n').filter(l=>l.trim().length>3).length;
+    const commentRatio = codeLines > 0 ? commentLines / codeLines : 0;
+    if (commentRatio > 0.4) codeAI += 0.25;
+    else if (commentRatio > 0.25) codeAI += 0.12;
+
+    // AI-typical comment phrases
+    const aiCommentPhrases = (content.match(/\/\/ (Initialize|Iterate|Apply|Return|Define|Create|Process|Handle|Ensure|Implement|Calculate|Generate|This function|This method|This class|Selecting|Partitioning|Recursively|Validate|Base case)/g)||[]).length;
+    codeAI += Math.min(0.35, aiCommentPhrases * 0.12);
+
+    // Gemini spesifik: tip belirtme (type hints) + docstring birlikte
+    const typeHints = (content.match(/List\[|Union\[|Optional\[|Dict\[|Tuple\[|-> List|-> Dict|-> Optional/g)||[]).length;
+    codeAI += Math.min(0.30, typeHints * 0.08);
+
+    // Gemini spesifik: Complexity / Args / Returns / Example docstring bölümleri
+    const docSections = (content.match(/Args:|Returns:|Raises:|Example:|Parameters|Complexity:|Note:/g)||[]).length;
+    codeAI += Math.min(0.35, docSections * 0.09);
+
+    // ChatGPT spesifik: "Create a copy", "avoid modifying the original" tarzı açıklamalar
+    const chatgptPhrases = (content.match(/# Create a copy|# avoid modifying|# Sort the|# Example usage|Parameters\s*[-]+|Returns\s*[-]+|Example\s*[-]+/g)||[]).length;
+    codeAI += Math.min(0.30, chatgptPhrases * 0.10);
+
+    // if __name__ == "__main__" (AI örnek kullanımı)
+    if (/if __name__ == ['"]__main__['"]/.test(content)) codeAI += 0.15;
+
+    // "Example Usage" veya "Example:" yorumu
+    const exampleComment = (content.match(/# Example (Usage|usage|:)|\/\/ Example/g)||[]).length;
+    codeAI += Math.min(0.20, exampleComment * 0.10);
+
+    // Perfect variable names (snake_case or camelCase, very clean)
+    const perfectVars = (content.match(/\b(processed_results|input_data|output_data|result_list|data_processor|error_handler|config_manager|base_url|api_response|user_input|final_result|transformed_data)\b/g)||[]).length;
+    codeAI += Math.min(0.3, perfectVars * 0.12);
+
+    // AI-style docstrings (Python)
+    const docstrings = (content.match(/"""[\s\S]{20,}?"""|'''[\s\S]{20,}?'''/g)||[]).length;
+    codeAI += Math.min(0.25, docstrings * 0.12);
+
+    // Overly descriptive function names
+    const longFuncNames = (content.match(/def [a-z]{8,}_[a-z]{4,}|function [a-z]{8,}[A-Z]/g)||[]).length;
+    codeAI += Math.min(0.2, longFuncNames * 0.10);
+
+    // ── Human code signals ──
+    // Debug print statements
+    const debugLogs = (content.match(/console\.log\(|print\(|System\.out\.print|echo |var_dump\(/g)||[]).length;
+    const funcs = (content.match(/function |def |const \w+ = \(|async |\w+\s*=\s*lambda/g)||[]).length;
+    if (debugLogs > 0) codeHuman += Math.min(0.25, debugLogs * 0.08);
+
+    // TODO / FIXME / hack comments
+    const todos = (content.match(/TODO|FIXME|HACK|XXX|fixme|todo|hack|temp|#noqa|wtf|idk|neden|bilmiyorum/gi)||[]).length;
+    codeHuman += Math.min(0.35, todos * 0.14);
+
+    // var instead of let/const (old habits)
+    if (/\bvar /.test(content)) codeHuman += 0.10;
+
+    // Short/messy variable names
+    const messyVars = (content.match(/\b(x|y|z|tmp|temp|foo|bar|baz|asd|abc|yyy|xxx|sonuc|veri|liste|dizi)\b/g)||[]).length;
+    codeHuman += Math.min(0.25, messyVars * 0.07);
+
+    // Commented-out code (humans do this, AI rarely does)
+    const commentedCode = (content.match(/\/\/ (if|for|while|return|const|let|var|function)|# (if|for|while|return|def|import)/g)||[]).length;
+    codeHuman += Math.min(0.2, commentedCode * 0.10);
+
+    // Turkish comments (definitely human or local AI — weaker AI signal)
+    const trComments = (content.match(/#.*(yap|al|ver|bak|düzelt|sil|ekle|kontrol|buraya|şunu|bunu|neden|çalışmıyor)/gi)||[]).length;
+    codeHuman += Math.min(0.3, trComments * 0.12);
   }
 
   // ── Score aggregation ──
